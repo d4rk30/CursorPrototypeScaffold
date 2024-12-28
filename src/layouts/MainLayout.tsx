@@ -1,6 +1,6 @@
-import { Layout, Menu, theme, Dropdown, Space } from 'antd';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Layout, Menu, theme, Dropdown, Space, Breadcrumb } from 'antd';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import {
     DashboardOutlined,
     HomeOutlined,
@@ -15,6 +15,7 @@ import {
     ToolOutlined,
     UserOutlined,
     LogoutOutlined,
+    LockOutlined,
 } from '@ant-design/icons';
 import logo from '../assets/images/logo.png';
 
@@ -22,7 +23,9 @@ const { Header, Content, Sider } = Layout;
 
 const MainLayout = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
+    const [openKeys, setOpenKeys] = useState<string[]>([]);
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
@@ -223,9 +226,9 @@ const MainLayout = () => {
 
     const userMenuItems = [
         {
-            key: 'profile',
-            icon: <UserOutlined />,
-            label: '个人信息',
+            key: 'change-password',
+            icon: <LockOutlined />,
+            label: '修改密码',
         },
         {
             key: 'logout',
@@ -241,10 +244,55 @@ const MainLayout = () => {
     const handleUserMenuClick = ({ key }: { key: string }) => {
         if (key === 'logout') {
             console.log('logout clicked');
-        } else if (key === 'profile') {
-            console.log('profile clicked');
+        } else if (key === 'change-password') {
+            console.log('change-password clicked');
         }
     };
+
+    const getSelectedKeys = () => {
+        const pathname = location.pathname.substring(1);
+        return [pathname];
+    };
+
+    const getOpenKeys = (pathname: string) => {
+        const parentKey = menuItems.find(item =>
+            item.children?.some(child => child.key === pathname)
+        )?.key;
+
+        return parentKey ? [parentKey] : [];
+    };
+
+    useEffect(() => {
+        const pathname = location.pathname.substring(1);
+        if (!collapsed) {
+            setOpenKeys(getOpenKeys(pathname));
+        }
+    }, [location.pathname, collapsed]);
+
+    const handleOpenChange = (keys: string[]) => {
+        setOpenKeys(keys);
+    };
+
+    const breadcrumbItems = useMemo(() => {
+        const pathname = location.pathname.substring(1);
+
+        const findMenuItem = (menuItems: any[], path: string): any[] => {
+            for (const item of menuItems) {
+                if (item.key === path) {
+                    return [{ title: item.label }];
+                }
+                if (item.children) {
+                    const found = findMenuItem(item.children, path);
+                    if (found.length > 0) {
+                        return [{ title: item.label }, ...found];
+                    }
+                }
+            }
+            return [];
+        };
+
+        return findMenuItem(menuItems, pathname);
+    }, [location.pathname, menuItems]);
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -315,7 +363,9 @@ const MainLayout = () => {
                         <Menu
                             theme="dark"
                             mode="inline"
-                            defaultSelectedKeys={['dashboard']}
+                            selectedKeys={getSelectedKeys()}
+                            openKeys={collapsed ? [] : openKeys}
+                            onOpenChange={handleOpenChange}
                             style={{
                                 height: '100%',
                                 overflowY: 'auto',
@@ -334,14 +384,24 @@ const MainLayout = () => {
                 </Sider>
 
                 <Layout style={{
-                    padding: '24px',
+                    padding: '0 0 24px',
                     marginLeft: collapsed ? 80 : 200,
                     transition: 'margin-left 0.2s',
                 }}>
+                    <div style={{
+                        padding: '16px 24px',
+                        background: colorBgContainer,
+                        position: 'sticky',
+                        top: 64,
+                        zIndex: 2,
+                        borderBottom: '1px solid #f0f0f0'
+                    }}>
+                        <Breadcrumb items={breadcrumbItems} />
+                    </div>
                     <Content
                         style={{
                             padding: 24,
-                            margin: 0,
+                            margin: '24px 24px 0',
                             minHeight: 280,
                             background: colorBgContainer,
                             borderRadius: borderRadiusLG,
